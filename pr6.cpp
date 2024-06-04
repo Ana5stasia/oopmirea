@@ -3,6 +3,7 @@
 #include <vector>
 #include <functional>
 #include <fstream>
+#include <algorithm>
 
 template<class T>
 class Element {
@@ -52,6 +53,7 @@ public:
     virtual Element<T>& operator[](int index) = 0;
     virtual bool isEmpty() { return count == 0; }
 
+    // Добавлены методы filter и find
     std::vector<Element<T>*> filter(std::function<bool(const T&)> condition) {
         std::vector<Element<T>*> result;
         Element<T>* current = head;
@@ -62,6 +64,17 @@ public:
             current = current->next;
         }
         return result;
+    }
+
+    Element<T>* find(std::function<bool(const T&)> condition) {
+        Element<T>* current = head;
+        while (current != nullptr) {
+            if (condition(current->info)) {
+                return current;
+            }
+            current = current->next;
+        }
+        return nullptr;
     }
 
     void save(const std::string& filename) {
@@ -102,6 +115,116 @@ std::ostream& operator<<(std::ostream& s, LinkedList<T1>& el) {
         s << current->info << " ";
         current = current->next;
     }
+    return s;
+}
+
+template<class T>
+class DoublyLinkedList : public LinkedList<T> {
+public:
+    // Добавлены методы insert и remove
+    Element<T>* insert(Element<T>* pos, T value) {
+        if (pos == nullptr) {
+            return push(value);
+        }
+        Element<T>* newElement = new Element<T>(pos->next, pos, value);
+        if (pos->next != nullptr) {
+            pos->next->prev = newElement;
+        } else {
+            tail = newElement;
+        }
+        pos->next = newElement;
+        count++;
+        return newElement;
+    }
+
+    Element<T>* remove(Element<T>* pos) {
+        if (pos == nullptr || count == 0) {
+            return nullptr;
+        }
+        Element<T>* result = pos;
+        if (pos->prev != nullptr) {
+            pos->prev->next = pos->next;
+        } else {
+            head = pos->next;
+        }
+        if (pos->next != nullptr) {
+            pos->next->prev = pos->prev;
+        } else {
+            tail = pos->prev;
+        }
+        count--;
+        return result;
+    }
+
+    Element<T>* pop() override {
+        if (tail == nullptr) return nullptr;
+        Element<T>* res = tail;
+        if (head == tail) {
+            head = tail = nullptr;
+        } else {
+            tail = tail->prev;
+            tail->next = nullptr;
+        }
+        count--;
+        return res;
+    }
+
+    Element<T>* push(T value) override {
+        Element<T>* newElement = new Element<T>(value);
+        if (head == nullptr) {
+            head = tail = newElement;
+        } else {
+            tail->next = newElement;
+            newElement->prev = tail;
+            tail = newElement;
+        }
+        count++;
+        return newElement;
+    }
+
+    Element<T>& operator[](int index) override {
+        if (index < 0 || index >= count) {
+            throw std::out_of_range("Index out of range");
+        }
+        Element<T>* current;
+        if (index < count / 2) {
+            current = head;
+            for (int i = 0; i < index; i++) {
+                current = current->next;
+            }
+        } else {
+            current = tail;
+            for (int i = count - 1; i > index; i--) {
+                current = current->prev;
+            }
+        }
+        return current->info;
+    }
+
+    virtual ~DoublyLinkedList() {
+        std::cout << "\nDoublyLinkedList class destructor";
+    }
+};
+
+// Добавлен класс Team для пункта 6.1
+class Team {
+public:
+    std::string name;
+    std::string city;
+    int wins;
+    int losses;
+    int draws;
+    int points;
+
+    Team(std::string n, std::string c, int w, int l, int d, int p) : name(n), city(c), wins(w), losses(l), draws(d), points(p) {}
+
+    template<class T1>
+    friend std::ostream& operator<<(std::ostream& s, Team& el);
+};
+
+template<class T1>
+std::ostream& operator<<(std::ostream& s, Team& el) {
+    s << el.name << ", " << el.city << ", " << el.wins << ", " << el.losses << ", " << el.draws << ", " << el.points;
     return s;
 }
 
@@ -217,14 +340,14 @@ public:
     }
 
     virtual Element<T>& operator[](int index) override {
-        Element<T>* current = this->head;
-        for (int i = 0; i < index && current != nullptr; ++i) {
-            current = current->next;
-        }
-        if (current == nullptr) {
+        if (index < 0 || index >= this->count) {
             throw std::out_of_range("Index out of range");
         }
-        return *current;
+        Element<T>* current = this->head;
+        for (int i = 0; i < index; ++i) {
+            current = current->next;
+        }
+        return current->info;
     }
 
     friend std::ostream& operator<<(std::ostream& s, StackQueue<T, N>& sq) {
@@ -237,42 +360,70 @@ public:
     }
 };
 
+// Добавлены методы для пункта 6.2
+template <typename T>
+int custom_filter(const T& value, const T& filter_value) {
+    return value > filter_value;
+}
+
+void dynamic_cast_test(LinkedList<Team>* base_ptr) {
+    DoublyLinkedList<team>* derived_ptr = dynamic_cast<DoublyLinkedList<team>*>(base_ptr);
+    if (derived_ptr != nullptr) {
+        std::cout << "dynamic_cast succeeded\n";
+        delete derived_ptr;
+    } else {
+        std::cout << "dynamic_cast failed\n";
+        delete base_ptr;
+    }
+}
+
 std::ostream& hex_format(std::ostream& s) {
     s << std::hex << std::setw(8) << std::setfill('0');
     return s;
 }
 
 int main() {
-    StackQueue<double> sq;
-    for (int i = 0; i < 10; ++i) {
-        sq.push_back(i * 1.1);
-    }
-    std::cout << std::setfill(' ') << std::setw(5) << sq << std::endl;
+    // Создание двусвязного списка команд для пункта 6.1
+    DoublyLinkedList<Team> teams;
+    teams.push(Team("Barcelona", "Barcelona", 26, 3, 5, 85));
+    teams.push(Team("Real Madrid", "Madrid", 24, 5, 6, 78));
+    teams.push(Team("Atletico Madrid", "Madrid", 19, 6, 10, 67));
+    teams.push(Team("Sevilla", "Sevilla", 18, 8, 9, 63));
 
-    Element<double>* el = sq.pop_back();
-    if (el != nullptr) {
-        std::cout << "Popped from back: " << el->info << std::endl;
-        delete el;
-    }
-
-    el = sq.pop_front();
-    if (el != nullptr) {
-        std::cout << "Popped from front: " << el->info << std::endl;
-        delete el;
+    // Тестирование фильтрации и поиска для пункта 6.1
+    std::vector<Element<Team>*> filtered_teams = teams.filter([](const Team& t) { return t.points > 70; });
+    for (Element<Team>* el : filtered_teams) {
+        std::cout << *el << "\n";
     }
 
-    // Save and load example
-    sq.save("list.dat");
-    StackQueue<double> loadedSq;
-    loadedSq.load("list.dat");
-    std::cout << loadedSq << std::endl;
-
-    // Filter example
-    auto filtered = loadedSq.filter([](const double& value) { return value > 5.0; });
-    for (auto elem : filtered) {
-        std::cout << *elem << " ";
+    Element<Team>* found_team = teams.find([](const Team& t) { return t.name == "Real Madrid"; });
+    if (found_team != nullptr) {
+        std::cout << *found_team << "\n";
     }
-    std::cout << std::endl;
+
+    // Создание списка динамически для пункта 6.2
+    LinkedList<Team>* teams_ptr = new DoublyLinkedList<Team>();
+    teams_ptr->push(Team("Barcelona", "Barcelona", 26, 3, 5, 85));
+    teams_ptr->push(Team("Real Madrid", "Madrid", 24, 5, 6, 78));
+    teams_ptr->push(Team("Atletico Madrid", "Madrid", 19, 6, 10, 67));
+    teams_ptr->push(Team("Sevilla", "Sevilla", 18, 8, 9, 63));
+
+    // Тестирование фильтрации с произвольным полем для пункта 6.2
+    std::vector<Element<Team>*> filtered_teams_ptr = teams_ptr->filter([&](const Team& t) { return custom_filter(t.points, 70); });
+    for (Element<Team>* el : filtered_teams_ptr) {
+        std::cout << *el << "\n";
+    }
+
+    // Тестирование dynamic_cast для пункта 6.2
+    dynamic_cast_test(teams_ptr);
+
+    // Тестирование сохранения и загрузки списка из файла для пункта 6.2
+    teams.save("teams.dat");
+    LinkedList<Team> loaded_teams;
+    loaded_teams.load("teams.dat");
+    for (int i = 0; i < loaded_teams.count; ++i) {
+        std::cout << loaded_teams[i] << "\n";
+    }
 
     return 0;
 }
